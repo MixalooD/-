@@ -1,0 +1,6 @@
+{
+  "name": "Словесность XIX — Конспект лекций и Google Docs",
+  "description": "Систематизированный интерактивный конспект лекций по истории русской литературы первой половины XIX века с указателем персоналий, хронологией и интеграцией с Google Docs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
