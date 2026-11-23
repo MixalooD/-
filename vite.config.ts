@@ -6,12 +6,12 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: process.env.VITE_BASE_PATH || './',
     plugins: [
       react(),
       tailwindcss(),
-      // Copies src/assets into dist/ so root-relative URLs like
-      // "/src/assets/images/..." (e.g. generate_image output) still resolve
-      // in production builds. Do not remove.
+      // Copies src/assets into dist/ so unbundled image URLs resolve in production
+      // builds, and creates GitHub Pages support files (.nojekyll and 404.html).
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
@@ -24,6 +24,22 @@ export default defineConfig(() => {
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
+          }
+          if (fs.existsSync(distDir)) {
+            const leakedChatAssets = path.join(distDir, 'assets', 'aistudio');
+            if (fs.existsSync(leakedChatAssets)) {
+              fs.rmSync(leakedChatAssets, {recursive: true, force: true});
+            }
+            fs.writeFileSync(path.join(distDir, '.nojekyll'), '');
+            const indexHtml = path.join(distDir, 'index.html');
+            if (fs.existsSync(indexHtml)) {
+              fs.copyFileSync(indexHtml, path.join(distDir, '404.html'));
+            }
+            if (process.env.GITHUB_ACTIONS !== 'true') {
+              const docsDir = path.resolve(__dirname, 'docs');
+              fs.rmSync(docsDir, {recursive: true, force: true});
+              fs.cpSync(distDir, docsDir, {recursive: true, force: true});
+            }
           }
         },
       },

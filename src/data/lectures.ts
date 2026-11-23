@@ -1,10 +1,20 @@
 import type { Lecture } from '../types/compendium';
 
+const rawBaseUrl =
+  typeof import.meta !== 'undefined' &&
+  typeof import.meta.env?.BASE_URL === 'string'
+    ? import.meta.env.BASE_URL
+    : './';
+
+const normalizedBaseUrl = rawBaseUrl.endsWith('/')
+  ? rawBaseUrl
+  : `${rawBaseUrl}/`;
+
 export const ARCHIVAL_PLATES = {
-  salon: '/src/assets/images/hero_russian_literary_salon_1795446826012.jpg',
-  ballad: '/src/assets/images/plate_zhukovsky_ballad_1795446825361.jpg',
-  senate: '/src/assets/images/plate_decembrists_senate_1795446828546.jpg',
-  southernSea: '/src/assets/images/plate_pushkin_southern_sea_1795446825721.jpg',
+  salon: `${normalizedBaseUrl}src/assets/images/hero_russian_literary_salon_1795446826012.jpg`,
+  ballad: `${normalizedBaseUrl}src/assets/images/plate_zhukovsky_ballad_1795446825361.jpg`,
+  senate: `${normalizedBaseUrl}src/assets/images/plate_decembrists_senate_1795446828546.jpg`,
+  southernSea: `${normalizedBaseUrl}src/assets/images/plate_pushkin_southern_sea_1795446825721.jpg`,
 } as const;
 
 export const COMPENDIUM_META = {

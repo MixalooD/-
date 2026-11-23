@@ -109,10 +109,14 @@ export default function App() {
       setUser(result.user);
       setNeedsAuth(false);
     } catch (err) {
-      const message =
-        err instanceof Error && err.message.includes('popup-closed-by-user')
-          ? 'Окно входа Google было закрыто до завершения авторизации.'
-          : 'Не удалось выполнить вход через Google. Проверьте разрешение на всплывающие окна и попробуйте снова.';
+      const errorText = err instanceof Error ? err.message : '';
+      let message =
+        'Не удалось выполнить вход через Google. Проверьте разрешение на всплывающие окна и попробуйте снова.';
+      if (errorText.includes('popup-closed-by-user')) {
+        message = 'Окно входа Google было закрыто до завершения авторизации.';
+      } else if (errorText.includes('unauthorized-domain')) {
+        message = `Домен ${window.location.hostname} не добавлен в список разрешённых (Authorized domains) в настройках Firebase Authentication.`;
+      }
       setAuthError(message);
     } finally {
       setIsLoggingIn(false);
