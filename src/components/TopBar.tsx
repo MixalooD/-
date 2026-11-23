@@ -12,7 +12,7 @@ const NAV_ITEMS: Array<{ id: AppSection; label: string }> = [
   { id: 'lectures', label: 'Лекции' },
   { id: 'figures', label: 'Персоналии' },
   { id: 'chronology', label: 'Хронология' },
-  { id: 'docs', label: 'Google Docs' },
+  { id: 'export', label: 'Экспорт' },
 ];
 
 export function TopBar({
@@ -28,7 +28,7 @@ export function TopBar({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#FBF9F5] border-b border-[#E6DFD3]">
+    <header className="sticky top-0 z-40 bg-[#FBF9F5] border-b border-[#E6DFD3] print:hidden">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-10 h-15 flex items-center justify-between gap-8">
         {/* Zone 1: Single-element editorial wordmark */}
         <button
@@ -71,7 +71,7 @@ export function TopBar({
             onClick={onQuickExport}
             className="px-4 py-2 text-xs sm:text-sm font-medium text-white bg-[#1E3A8A] hover:bg-[#172E6E] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1E3A8A]"
           >
-            Экспорт в Docs
+            Экспорт / PDF
           </button>
 
           <button

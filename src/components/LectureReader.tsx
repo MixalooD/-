@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  FileText,
+  Download,
   Plus,
+  Printer,
   Search,
   Trash2,
   X,
@@ -27,7 +28,7 @@ interface LectureReaderProps {
   marginNotes: MarginNote[];
   onAddNote: (lectureId: string, content: string, sectionTitle?: string) => void;
   onDeleteNote: (noteId: string) => void;
-  onSendLectureToDocs: (lectureId: string) => void;
+  onExportLecture: (lectureId: string) => void;
   onInspectFigure: (figureName: string) => void;
 }
 
@@ -39,7 +40,7 @@ export function LectureReader({
   marginNotes,
   onAddNote,
   onDeleteNote,
-  onSendLectureToDocs,
+  onExportLecture,
   onInspectFigure,
 }: LectureReaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,7 +112,7 @@ export function LectureReader({
   return (
     <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-10 pb-20">
       {/* Archival Course Masthead & Search Utility */}
-      <section className="pt-6 pb-5 border-b border-[#E6DFD3]">
+      <section className="pt-6 pb-5 border-b border-[#E6DFD3] print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
           <div className="max-w-3xl">
             <p className="font-mono text-xs tracking-wider text-[#57534E] tabular-nums">
@@ -238,7 +239,7 @@ export function LectureReader({
       {/* Horizontal Chapter Navigation Strip (01–06) */}
       <nav
         aria-label="Выбор лекции"
-        className="py-3 border-b border-[#E6DFD3] overflow-x-auto"
+        className="py-3 border-b border-[#E6DFD3] overflow-x-auto print:hidden"
       >
         <div className="flex items-center gap-2 min-w-max">
           {lectures.map((lecture) => {
@@ -269,9 +270,9 @@ export function LectureReader({
       </nav>
 
       {/* Asymmetric Two-Column Reading Canvas (70% Main Prose / 30% Margin Rail) */}
-      <div className="mt-7 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+      <div className="mt-7 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start print:block print:mt-0">
         {/* Main Editorial Reading Column */}
-        <article className="lg:col-span-8 max-w-[740px]">
+        <article className="lg:col-span-8 max-w-[740px] print:max-w-none">
           <header className="pb-6 border-b border-[#D6CEBE]">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-mono text-[#57534E] tabular-nums">
               <span>ЛЕКЦИЯ {activeLecture.romanNumeral}</span>
@@ -356,7 +357,7 @@ export function LectureReader({
           {/* Previous / Next Lecture Footer Navigation */}
           <nav
             aria-label="Переход между лекциями"
-            className="mt-14 pt-6 border-t border-[#D6CEBE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
+            className="mt-14 pt-6 border-t border-[#D6CEBE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 print:hidden"
           >
             {prevLecture ? (
               <button
@@ -401,7 +402,7 @@ export function LectureReader({
         </article>
 
         {/* Right Margin Rail (30%): TOC, Personal Margin Notes, Mentioned Figures, Export */}
-        <aside className="lg:col-span-4 lg:sticky lg:top-20 space-y-8">
+        <aside className="lg:col-span-4 lg:sticky lg:top-20 space-y-8 print:hidden">
           {/* Table of Contents for Current Lecture */}
           <div className="pb-6 border-b border-[#E6DFD3]">
             <h3 className="font-editorial text-xl font-semibold text-[#1C1917]">
@@ -423,14 +424,25 @@ export function LectureReader({
               ))}
             </ol>
 
-            <button
-              type="button"
-              onClick={() => onSendLectureToDocs(activeLecture.id)}
-              className="mt-5 w-full py-2.5 px-4 text-xs sm:text-sm font-medium text-[#1E3A8A] bg-[#F2EDE4] hover:bg-[#E6DFD3] border border-[#D6CEBE] rounded-md transition-colors inline-flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
-            >
-              <FileText className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span>Отправить эту лекцию в Google Docs</span>
-            </button>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => onExportLecture(activeLecture.id)}
+                className="w-full py-2.5 px-4 text-xs sm:text-sm font-medium text-[#1E3A8A] bg-[#F2EDE4] hover:bg-[#E6DFD3] border border-[#D6CEBE] rounded-md transition-colors inline-flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+              >
+                <Download className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Экспортировать лекцию</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="w-full py-2.5 px-4 text-xs sm:text-sm font-medium text-[#292524] bg-white hover:bg-[#F2EDE4]/60 border border-[#D6CEBE] rounded-md transition-colors inline-flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
+              >
+                <Printer className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Печать / сохранить в PDF</span>
+              </button>
+            </div>
           </div>
 
           {/* Personal Study Margin Notes (Заметки на полях) */}
@@ -444,8 +456,8 @@ export function LectureReader({
               </span>
             </div>
             <p className="mt-1 text-xs text-[#57534E] leading-relaxed">
-              Сохраняются локально и могут быть включены при экспорте в Google
-              Docs.
+              Сохраняются локально в браузере и могут быть включены при экспорте
+              или печати.
             </p>
 
             <form onSubmit={handleNoteSubmit} className="mt-4 space-y-2.5">

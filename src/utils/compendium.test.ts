@@ -11,11 +11,11 @@ import {
   stripInlineMarkers,
 } from './lectureSearch';
 import {
-  buildCompendiumDocumentPlan,
+  buildExportBundle,
+  buildExportFilename,
   buildMarkdownExport,
-  extractGoogleDocId,
-  extractPlainTextFromGoogleDoc,
-} from './googleDocsBuilder';
+  buildPlainTextExport,
+} from './exportBuilder';
 
 test('parseInlineFormatting splits bold, italic, and (доп!) tokens safely', () => {
   const tokens = parseInlineFormatting(
@@ -71,29 +71,11 @@ test('filterTimeline filters by era and keeps chronological order', () => {
   }
 });
 
-test('extractGoogleDocId parses URLs, raw IDs, and rejects invalid input', () => {
-  assert.equal(
-    extractGoogleDocId('https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit?usp=sharing'),
-    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'
-  );
-  assert.equal(
-    extractGoogleDocId('https://docs.google.com/document/u/1/d/1AbCdEfGhIjKlMnOpQrStUvWx/view'),
-    '1AbCdEfGhIjKlMnOpQrStUvWx'
-  );
-  assert.equal(
-    extractGoogleDocId('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'),
-    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'
-  );
-  assert.equal(extractGoogleDocId('https://example.com/not-a-doc'), null);
-  assert.equal(extractGoogleDocId('short'), null);
-  assert.equal(extractGoogleDocId(''), null);
-});
-
-test('buildCompendiumDocumentPlan generates valid non-overlapping UTF-16 ranges for Google Docs batchUpdate', () => {
-  const plan = buildCompendiumDocumentPlan(
+test('buildMarkdownExport outputs structured markdown with optional supplements, notes, and figures', () => {
+  const md = buildMarkdownExport(
     {
-      title: 'Тестовый конспект XIX века',
-      selectedLectureIds: ['lecture-1', 'lecture-5'],
+      title: 'Экспорт лекций',
+      selectedLectureIds: ['lecture-2'],
       includeEditorialSupplements: true,
       includeMarginNotes: true,
       includeFiguresAppendix: true,
@@ -103,42 +85,24 @@ test('buildCompendiumDocumentPlan generates valid non-overlapping UTF-16 ranges 
     [
       {
         id: 'note-1',
-        lectureId: 'lecture-1',
-        content: 'Сравнить Людмилу и Светлану к семинару.',
-        createdAt: '2026-11-23',
+        lectureId: 'lecture-2',
+        sectionTitle: '2.1. Введение',
+        content: 'Сопоставить кружки начала века.',
+        createdAt: '23.11.2026',
       },
-    ],
-    1
+    ]
   );
-
-  assert.equal(plan.stats.lectureCount, 2);
-  assert.equal(plan.stats.noteCount, 1);
-  assert.ok(plan.stats.figureCount > 5);
-  assert.ok(plan.requests.length > 10);
-
-  const insertReq = plan.requests[0];
-  assert.ok(insertReq.insertText);
-  assert.equal(insertReq.insertText.location.index, 1);
-
-  const maxAllowedEnd = 1 + insertReq.insertText.text.length;
-  for (let i = 1; i < plan.requests.length; i += 1) {
-    const req = plan.requests[i];
-    const range = req.updateParagraphStyle?.range ?? req.updateTextStyle?.range;
-    assert.ok(range, `Request ${i} must have a range`);
-    assert.ok(range.startIndex >= 1, `startIndex ${range.startIndex} must be >= 1`);
-    assert.ok(range.endIndex > range.startIndex, `endIndex must exceed startIndex`);
-    assert.ok(
-      range.endIndex <= maxAllowedEnd,
-      `endIndex ${range.endIndex} exceeds maxAllowedEnd ${maxAllowedEnd}`
-    );
-  }
+  assert.match(md, /^# Экспорт лекций/);
+  assert.match(md, /## ЛЕКЦИЯ 2\./);
+  assert.match(md, /#### Личные заметки на полях/);
+  assert.match(md, /Сопоставить кружки начала века\./);
+  assert.match(md, /## Приложение\. Указатель персоналий и дат/);
 });
 
-test('buildCompendiumDocumentPlan respects non-1 baseIndex when appending to existing Google Doc', () => {
-  const baseIndex = 245;
-  const plan = buildCompendiumDocumentPlan(
+test('buildPlainTextExport strips markdown formatting and optionally omits supplements', () => {
+  const txt = buildPlainTextExport(
     {
-      title: 'Дополнение к конспекту',
+      title: 'Чистый текст',
       selectedLectureIds: ['lecture-3'],
       includeEditorialSupplements: false,
       includeMarginNotes: false,
@@ -146,58 +110,50 @@ test('buildCompendiumDocumentPlan respects non-1 baseIndex when appending to exi
     },
     LECTURES,
     HISTORICAL_FIGURES,
-    [],
-    baseIndex
+    []
   );
-
-  const insertReq = plan.requests[0];
-  assert.equal(insertReq.insertText?.location.index, baseIndex);
-  assert.equal(plan.plainText.startsWith('\n'), true);
-  assert.equal(plan.plainText.includes('(доп!)'), false);
+  assert.equal(txt.includes('**'), false);
+  assert.equal(txt.includes('(доп!)'), false);
+  assert.match(txt, /ЛЕКЦИЯ 3\./);
 });
 
-test('extractPlainTextFromGoogleDoc reads document body and computes safe append index', () => {
-  const parsed = extractPlainTextFromGoogleDoc({
-    documentId: 'doc-123456789012345',
-    title: 'Русская литература',
-    body: {
-      content: [
-        { endIndex: 1 },
-        {
-          endIndex: 20,
-          paragraph: {
-            elements: [{ textRun: { content: 'Лекция 1. Жуковский\n' } }],
-          },
-        },
-        {
-          endIndex: 42,
-          paragraph: {
-            elements: [{ textRun: { content: 'Основные тезисы.\n' } }],
-          },
-        },
-      ],
-    },
-  });
-
-  assert.equal(parsed.title, 'Русская литература');
-  assert.deepEqual(parsed.paragraphs, ['Лекция 1. Жуковский', 'Основные тезисы.']);
-  assert.equal(parsed.endIndex, 41);
-});
-
-test('buildMarkdownExport outputs structured markdown for selected lectures', () => {
-  const md = buildMarkdownExport(
+test('buildExportBundle calculates accurate stats and sorted figures for selected lectures', () => {
+  const bundle = buildExportBundle(
     {
-      title: 'Экспорт лекций',
-      selectedLectureIds: ['lecture-2'],
+      title: 'Подборка двух лекций',
+      selectedLectureIds: ['lecture-1', 'lecture-5'],
       includeEditorialSupplements: true,
-      includeMarginNotes: false,
+      includeMarginNotes: true,
       includeFiguresAppendix: true,
     },
     LECTURES,
     HISTORICAL_FIGURES,
-    []
+    [
+      {
+        id: 'note-a',
+        lectureId: 'lecture-1',
+        content: 'Сравнить Людмилу и Светлану.',
+        createdAt: '23.11.2026',
+      },
+      {
+        id: 'note-b',
+        lectureId: 'lecture-6',
+        content: 'Не должна попасть в выборку.',
+        createdAt: '23.11.2026',
+      },
+    ]
   );
-  assert.match(md, /^# Экспорт лекций/);
-  assert.match(md, /## ЛЕКЦИЯ 2\./);
-  assert.match(md, /## Приложение\. Указатель персоналий и дат/);
+  assert.equal(bundle.stats.lectureCount, 2);
+  assert.equal(bundle.stats.noteCount, 1);
+  assert.ok(bundle.stats.sectionCount >= 6);
+  assert.ok(bundle.stats.figureCount > 5);
+  assert.ok(bundle.stats.wordCount > 200);
+});
+
+test('buildExportFilename creates clean Cyrillic-safe filenames', () => {
+  assert.equal(
+    buildExportFilename('Лекция 1: Баллады / Жуковский?', 'md'),
+    'Лекция-1-Баллады-Жуковский.md'
+  );
+  assert.equal(buildExportFilename('   ', 'txt'), 'slovesnost-xix-konspekt.txt');
 });

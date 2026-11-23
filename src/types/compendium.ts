@@ -1,4 +1,4 @@
-export type AppSection = 'lectures' | 'figures' | 'chronology' | 'docs';
+export type AppSection = 'lectures' | 'figures' | 'chronology' | 'export';
 
 export interface ContentBullet {
   text: string;
@@ -99,14 +99,6 @@ export interface ExportOptions {
   includeEditorialSupplements: boolean;
   includeMarginNotes: boolean;
   includeFiguresAppendix: boolean;
-}
-
-export interface GoogleDocRecord {
-  documentId: string;
-  title: string;
-  url: string;
-  action: 'created' | 'appended' | 'opened';
-  updatedAt: string;
 }
 
 export type InlineToken =

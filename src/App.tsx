@@ -1,25 +1,17 @@
 import { useEffect, useState } from 'react';
-import type { User } from 'firebase/auth';
 import { LECTURES } from './data/lectures';
 import { HISTORICAL_FIGURES } from './data/figures';
 import { TIMELINE_EVENTS } from './data/timeline';
 import type {
   AppSection,
   ExportOptions,
-  GoogleDocRecord,
   MarginNote,
 } from './types/compendium';
-import {
-  clearAccessToken,
-  googleSignIn,
-  initAuth,
-  logout,
-} from './services/googleAuth';
 import { TopBar } from './components/TopBar';
 import { LectureReader } from './components/LectureReader';
 import { FiguresRegistry } from './components/FiguresRegistry';
 import { ChronologyView } from './components/ChronologyView';
-import { GoogleDocsStudio } from './components/GoogleDocsStudio';
+import { ExportStudio } from './components/ExportStudio';
 
 const NOTES_STORAGE_KEY = 'slovesnost_xix_margin_notes_v1';
 
@@ -68,28 +60,6 @@ export default function App() {
     includeFiguresAppendix: true,
   });
 
-  // Google Workspace Auth state (access token stays strictly in memory inside googleAuth.ts)
-  const [user, setUser] = useState<User | null>(null);
-  const [needsAuth, setNeedsAuth] = useState<boolean>(true);
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [recentDocs, setRecentDocs] = useState<GoogleDocRecord[]>([]);
-
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (authedUser) => {
-        setUser(authedUser);
-        setNeedsAuth(false);
-        setAuthError(null);
-      },
-      () => {
-        setUser(null);
-        setNeedsAuth(true);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
-
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -100,40 +70,6 @@ export default function App() {
       // Ignore storage quota issues gracefully
     }
   }, [marginNotes]);
-
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    setAuthError(null);
-    try {
-      const result = await googleSignIn();
-      setUser(result.user);
-      setNeedsAuth(false);
-    } catch (err) {
-      const errorText = err instanceof Error ? err.message : '';
-      let message =
-        'Не удалось выполнить вход через Google. Проверьте разрешение на всплывающие окна и попробуйте снова.';
-      if (errorText.includes('popup-closed-by-user')) {
-        message = 'Окно входа Google было закрыто до завершения авторизации.';
-      } else if (errorText.includes('unauthorized-domain')) {
-        message = `Домен ${window.location.hostname} не добавлен в список разрешённых (Authorized domains) в настройках Firebase Authentication.`;
-      }
-      setAuthError(message);
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    setNeedsAuth(true);
-    setAuthError(null);
-  };
-
-  const handleSessionExpired = () => {
-    clearAccessToken();
-    setNeedsAuth(true);
-  };
 
   const handleAddNote = (
     lectureId: string,
@@ -158,7 +94,7 @@ export default function App() {
     setMarginNotes((prev) => prev.filter((n) => n.id !== noteId));
   };
 
-  const handleSendLectureToDocs = (lectureId: string) => {
+  const handleExportLecture = (lectureId: string) => {
     const lecture = LECTURES.find((l) => l.id === lectureId);
     setExportOptions((prev) => ({
       ...prev,
@@ -167,7 +103,7 @@ export default function App() {
         : prev.title,
       selectedLectureIds: [lectureId],
     }));
-    setActiveSection('docs');
+    setActiveSection('export');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -184,16 +120,12 @@ export default function App() {
   };
 
   const handleQuickExport = () => {
-    setActiveSection('docs');
+    setActiveSection('export');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRecordDoc = (record: GoogleDocRecord) => {
-    setRecentDocs((prev) => [record, ...prev].slice(0, 8));
-  };
-
   return (
-    <div className="min-h-screen flex flex-col bg-[#FBF9F5] text-[#1C1917]">
+    <div className="min-h-screen flex flex-col bg-[#FBF9F5] text-[#1C1917] print:bg-white">
       <TopBar
         activeSection={activeSection}
         onNavigate={(section) => {
@@ -216,7 +148,7 @@ export default function App() {
             marginNotes={marginNotes}
             onAddNote={handleAddNote}
             onDeleteNote={handleDeleteNote}
-            onSendLectureToDocs={handleSendLectureToDocs}
+            onExportLecture={handleExportLecture}
             onInspectFigure={handleInspectFigure}
           />
         )}
@@ -239,27 +171,18 @@ export default function App() {
           />
         )}
 
-        {activeSection === 'docs' && (
-          <GoogleDocsStudio
+        {activeSection === 'export' && (
+          <ExportStudio
             lectures={LECTURES}
             figures={HISTORICAL_FIGURES}
             marginNotes={marginNotes}
-            user={user}
-            needsAuth={needsAuth}
-            isLoggingIn={isLoggingIn}
-            authError={authError}
-            onLogin={handleLogin}
-            onLogout={handleLogout}
-            onSessionExpired={handleSessionExpired}
             exportOptions={exportOptions}
             onUpdateExportOptions={setExportOptions}
-            recentDocs={recentDocs}
-            onRecordDoc={handleRecordDoc}
           />
         )}
       </main>
 
-      <footer className="border-t border-[#E6DFD3] bg-[#FBF9F5] py-6">
+      <footer className="border-t border-[#E6DFD3] bg-[#FBF9F5] py-6 print:hidden">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#57534E]">
           <p>
             Словесность XIX · Конспект лекций по истории русской литературы
